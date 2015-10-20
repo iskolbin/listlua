@@ -272,9 +272,9 @@ end
 local function mergeReverse( lst1, lst2, cmp )	
 	local function doMerge( lst1, lst2, cmp, acc )
 		if lst1:isnil() then
-			return lst2:append( acc )
+			return lst2:foldl( cons, acc )
 		elseif lst2:isnil() then
-			return lst1:append( acc )
+			return lst1:foldl( cons, acc )
 		else
 			local car1, car2 = lst1:car(), lst2:car()
 			if cmp( car1, car2 ) then
@@ -407,6 +407,20 @@ local function popclock( lst, abs )
 	return lst or Nil
 end
 
+local function equal( lst, lst2 )
+	if lst == lst2 then
+		return true
+	elseif islist( lst ) and islist( lst2 ) then
+		if not equal( lst:car(), lst2:car()) then
+			return false
+		else
+			return equal( lst:cdr(), lst2:cdr())
+		end
+	else
+		return false
+	end
+end
+
 local function gc( lst, ... )
 	collectgarbage( ... )
 	return lst
@@ -419,7 +433,7 @@ local List = {
 	list = list, range = range, length = length,
 	nth = nth, tail = tail, append = append, copy = copy, partition = partition, flatten = flatten,
 	islist = islist, isproperlist = isproperlist, ispair = ispair, isnil = isnil, tostring = tostring_, display = display, totable = totable,
-	sort = sort, merge = merge, eval = eval,
+	sort = sort, merge = merge, eval = eval, equal = equal,
 	pushclock = pushclock, popclock = popclock, gc = gc,
 }
 
