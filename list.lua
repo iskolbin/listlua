@@ -17,6 +17,9 @@ local Op = {
 	ne = function( a, b ) return a ~= b end,
 	gt = function( a, b ) return a >  b end,
 	ge = function( a, b ) return a >= b end,
+
+	inc = function( a ) return a + 1 end,
+	dec = function( a ) return a - 1 end,
 }
 
 local function cons ( head, lst ) return setmetatable( {head, lst}, PairMt ) end
@@ -27,21 +30,21 @@ local function cadr( lst ) return lst[2][1] end
 local function caar( lst ) return lst[1][1] end
 local function cdar( lst ) return lst[1][2] end
 local function cddr( lst ) return lst[2][2] end
-local function isNil( lst ) return lst == Nil end
-local function isPair( lst ) return lst ~= Nil and getmetatable( lst ) == PairMt end
-local function isList( lst ) return isNil( lst ) or ( isPair( lst ) and (isPair( lst:cdr()) or isNil(lst:cdr()))) end
-local function isProperList( lst ) 
-	if isNil( lst ) then
+local function isnil( lst ) return lst == Nil end
+local function ispair( lst ) return lst ~= Nil and getmetatable( lst ) == PairMt end
+local function islist( lst ) return isnil( lst ) or ( ispair( lst ) and (ispair( lst:cdr()) or isnil(lst:cdr()))) end
+local function isproper( lst ) 
+	if isnil( lst ) then
 		return true
-	elseif not isPair( lst ) then
+	elseif not ispair( lst ) then
 		return false
 	else
-		return isProperList( lst:cdr())
+		return isproper( lst:cdr())
 	end
 end
 
 local function foldl( lst, f, acc )
-	if isNil( lst ) then
+	if isnil( lst ) then
 		return acc
 	else
 		return foldl( lst:cdr(), f, f( lst:car(), acc ))
@@ -49,7 +52,7 @@ local function foldl( lst, f, acc )
 end
 
 local function sum( lst, acc )
-	if isNil( lst ) then
+	if isnil( lst ) then
 		return acc
 	else
 		return sum( lst:cdr(), acc + lst:car())
@@ -57,11 +60,12 @@ local function sum( lst, acc )
 end
 
 local function foldr( lst, f, acc )
-	if isNil( lst ) then
-		return acc
-	else
-		return f( lst:car(), foldr( lst:cdr(), f, acc ))
-	end
+	return lst:reverse():foldl( f, acc )
+--	if isNil( lst ) then
+--		return acc
+--	else
+--		return f( lst:car(), foldr( lst:cdr(), f, acc ))
+--	end
 end
 
 local function tail( lst, i )
@@ -76,9 +80,9 @@ local function nth( lst, n )
 	return lst:tail( n-1 ):car() 
 end
 
-local function indexOf( lst, x )
+local function indexof( lst, x )
 	local function doIndex( i, lst, x )
-		if isNull( lst ) then
+		if isnil( lst ) then
 			return -1
 		elseif lst:car() == x then
 			return i
@@ -90,14 +94,14 @@ local function indexOf( lst, x )
 	return doIndex( 0, lst, x )
 end
 
-local function exists( lst, x ) return lst:indexOf( x ) ~= -1 end
+local function exists( lst, x ) return lst:indexof( x ) ~= -1 end
 
 local function map( lst, f )
 	local function doMap( v, acc )
 		return cons( f( v ), acc )
 	end
 	
-	return foldr( lst, doMap, Nil )
+	return lst:foldr( doMap, Nil )
 end
 
 local function filter( lst, p )
@@ -109,10 +113,10 @@ local function filter( lst, p )
 		end
 	end 
 
-	return foldr( lst, doFilter, Nil )
+	return lst:foldr( doFilter, Nil )
 end
 
-local function filterMap( lst, p, f )
+local function filtermap( lst, p, f )
 	local function doFilterMap( v, acc )
 		if p( v ) then
 			return cons( f( v ), acc )
@@ -121,10 +125,10 @@ local function filterMap( lst, p, f )
 		end
 	end 
 
-	return foldr( lst, doFilterMap, Nil )
+	return lst:foldr( doFilterMap, Nil )
 end
 
-local function mapFilter( lst, f, p )
+local function mapfilter( lst, f, p )
 	local function doMapFilter( v, acc )
 		local v_ = f( v )
 		if p( v_ ) then
@@ -134,7 +138,7 @@ local function mapFilter( lst, f, p )
 		end
 	end 
 
-	return foldr( lst, doFilterMap, Nil )
+	return lst:foldr( doFilterMap, Nil )
 end
 
 local function list( vs )
@@ -170,8 +174,12 @@ local function range( from, to, step )
 		end
 	end
 
-	local step = step or ( from <= to and 1 or -1 )
+	if to == nil and step == nil then
+		to = from
+		from = to > 0 and 1 or to < 0 and -1 or 0 
+	end
 
+	local step = step or ( from <= to and 1 or -1 )
 
 	if from <= to and step > 0 then
 		return doForwardRange( Nil, to, from, step )
@@ -182,16 +190,30 @@ local function range( from, to, step )
 	end
 end
 
-local function reverse( lst ) return foldl( lst, cons, Nil ) end
-local function copy( lst ) return foldr( lst, cons, Nil ) end
-local function append( lst, lstTail ) return foldr( lst, cons, isList( lstTail ) and lstTail or list(lstTail) )end
+local function reverse( lst ) return lst:foldl( cons, Nil ) end
+local function copy( lst ) return lst:foldr( cons, Nil ) end
+local function append( lst, lstTail )
+	return lst:reverse():foldl( cons, islist( lstTail ) and lstTail or list(lstTail) )
+end
+
+local function length( lst ) 
+	local function doLength( lst, acc )
+		if lst:isnil() then
+			return acc
+		else
+			return doLength( lst:cdr(), acc + 1 )
+		end
+	end
+
+	return doLength( lst, 0 )
+end
 
 local function each( lst, f )
 	local function doEach( v, acc ) 
 		f( v ) 
 	end
 
-	foldr( lst, doEach, Nil )
+	lst:foldr( doEach, Nil )
 end
 
 local function count( lst, p )
@@ -202,11 +224,11 @@ local function count( lst, p )
 		return acc
 	end
 
-	return foldl( lst, doCount, 0 )
+	return lst:foldl( doCount, 0 )
 end
 
 local function all( lst, p )
-	if isNil( lst ) then
+	if lst:isnil() then
 		return true
 	elseif p( lst:car()) then
 		return all( lst:cdr(), p )
@@ -216,7 +238,7 @@ local function all( lst, p )
 end
 
 local function any( lst, p )
-	if isNil( lst ) or p( lst:car()) then
+	if lst:isnil() or p( lst:car()) then
 		return true
 	else
 		return any( lst:cdr(), p )
@@ -235,10 +257,9 @@ local function partition( lst, p )
 	return foldr( lst, doPartition, cons( Nil, Nil ))
 end
 
--- BROKEN
 local function flatten( lst )
 	local function doFlatten( v, acc )
-		if isPair( v ) then
+		if ispair( v ) then
 			return v:foldr( doFlatten, acc )
 		else
 			return acc:rcons( v )
@@ -248,30 +269,38 @@ local function flatten( lst )
 	return lst:foldr( doFlatten, Nil )
 end
 
-local function merge( lst1, lst2, cmp )
-	if isNil( lst1 ) then
-		return lst2
-	elseif isNil( lst2 ) then
-		return lst1
-	else
-		local car1, car2 = lst1:car(), lst2:car()
-		if cmp( car1, car2 ) then
-			return cons( car1, merge( lst1:cdr(), lst2, cmp ))
+local function mergeReverse( lst1, lst2, cmp )	
+	local function doMerge( lst1, lst2, cmp, acc )
+		if lst1:isnil() then
+			return lst2:append( acc )
+		elseif lst2:isnil() then
+			return lst1:append( acc )
 		else
-			return cons( car2, merge( lst1, lst2:cdr(), cmp ))
+			local car1, car2 = lst1:car(), lst2:car()
+			if cmp( car1, car2 ) then
+				return doMerge( lst1:cdr(), lst2, cmp, acc:rcons( car1 ))
+			else
+				return doMerge( lst1, lst2:cdr(), cmp, acc:rcons( car2 ))
+			end
 		end
 	end
+
+	return doMerge( lst1, lst2, cmp, Nil )
+end
+
+local function merge( lst1, lst2, cmp )
+	return mergeReverse( lst1, lst2, cmp ):reverse()
 end
 
 local function sort( lst, cmp )
 	local function doSort( lr, part, cmp )
-		if isNil( part ) then
-			if isNil( lr:cdr()) then
+		if isnil( part ) then
+			if isnil( lr:cdr()) then
 				return lr:car()
 			else
 				return doSort( part, lr, cmp )
 			end
-		elseif isNil( part:cdr()) then
+		elseif isnil( part:cdr()) then
 			return doSort( lr:rcons( part:car()), part:cdr(), cmp )
 		else
 			return doSort( lr:rcons( part:car():merge( part:cadr(), cmp )), part:cddr(), cmp )
@@ -281,11 +310,11 @@ local function sort( lst, cmp )
 	return doSort( Nil, lst:map( list ), cmp or Op.lt )
 end
 
-local function toTable( lst )
-	if isPair( lst ) then
+local function totable( lst )
+	if ispair( lst ) then
 		local acc = {}
-		while not isNil( lst ) do
-			if isList( lst ) then
+		while not lst:isnil() do
+			if lst:islist() then
 				acc[#acc+1] = lst:car()
 				lst = lst:cdr()	
 			elseif isPair( lst ) then
@@ -303,17 +332,17 @@ local function toTable( lst )
 	end
 end
 
-local function toString( lst )
-	if isPair( lst ) then
+local function tostring_( lst )
+	if ispair( lst ) then
 		local acc = {}
-		while not isNil( lst ) do
-			if isList( lst ) then
-				acc[#acc+1] = toString( lst:car())
+		while not lst:isnil() do
+			if lst:islist() then
+				acc[#acc+1] = tostring_( lst:car())
 				lst = lst:cdr()	
-			elseif isPair( lst ) then
-				acc[#acc+1] = toString( lst:car())
+			elseif lst:ispair() then
+				acc[#acc+1] = tostring_( lst:car())
 				acc[#acc+1] = '.'
-				acc[#acc+1] = toString( lst:cdr())
+				acc[#acc+1] = tostring_( lst:cdr())
 				break
 			else
 				acc[#acc+1] = tostring( lst )
@@ -323,39 +352,90 @@ local function toString( lst )
 		acc[1] = '(' .. acc[1]
 		acc[#acc] = acc[#acc] .. ')'
 		return table.concat( acc, ' ')
-	elseif isNil( lst ) then
+	elseif isnil( lst ) then
 		return '()'
 	else
-		return tostring(lst)
+		return tostring( lst )
 	end
 end
 
-local function display( lst ) 
-	print( lst ) 
+local function display( lst, index )
+	if index then
+		print( lst:nth( index ))
+	else
+		print( lst ) 
+	end
+	return lst or Nil
 end
 
 local unpack = table.unpack or unpack
 
 local function eval( lst )
-	return lst:car()( unpack( lst:cdr():toTable()))
+	local v = lst:car()( unpack( lst:cdr():totable()))
+	return v
+end
+
+local function shuffle( lst )
+	error( 'Not implemented' )
+	
+	local function doShuffle( lst, acc, len )
+		
+	end
+
+	return doShuffle( lst, Nil, lst:length() )
+end
+
+local _clocks, _mem, _nclocks = {}, {}, 0
+
+local function pushclock( lst )
+	_nclocks = _nclocks + 1
+	_clocks[_nclocks] = os.clock()
+	_mem[_nclocks] = 1024 * collectgarbage('count')
+	return lst or Nil
+end
+
+local function popclock( lst, abs )
+	if _nclocks > 0 then
+		local clck, mem = _clocks[_nclocks], _mem[_nclocks]
+		_clocks[_nclocks] = nil
+		_mem[_nclocks] = nil
+		_nclocks = _nclocks - 1
+		print( 'Time:', os.clock() - (abs and 0 or clck), 'Mem:', 1024 * collectgarbage('count') - (abs and 0 or mem))
+	else
+		print( 'Empty clocks stack' )
+	end
+	return lst or Nil
+end
+
+local function gc( lst, ... )
+	collectgarbage( ... )
+	return lst
 end
 
 local List = {
 	Op = Op, Nil = Nil,
 	cons = cons, rcons = rcons, car = car, cdr = cdr, cadr = cadr, caar = caar, cdar = cdar, cddr = cddr,
-	foldl = foldl, foldr = foldr, map = map, filter = filter, mapFilter = mapFilter, filterMap = filterMap, reverse = reverse, each = each, 
-	list = list, range = range,
+	foldl = foldl, foldr = foldr, map = map, filter = filter, mapfilter = mapfilter, filtermap = filtermap, reverse = reverse, each = each, 
+	list = list, range = range, length = length,
 	nth = nth, tail = tail, append = append, copy = copy, partition = partition, flatten = flatten,
-	isList = isList, isProperList = isProperList, isPair = isPair, isNil = isNil, toString = toString, display = display,
+	islist = islist, isproperlist = isproperlist, ispair = ispair, isnil = isnil, tostring = tostring_, display = display, totable = totable,
 	sort = sort, merge = merge, eval = eval,
+	pushclock = pushclock, popclock = popclock, gc = gc,
 }
 
 PairMt = { 
 	__index = List,
-	__tostring = List.toString
+	__tostring = List.tostring,
+	__len = List.length,
+	__concat = List.append,
 }
 
 Nil = setmetatable( {}, PairMt )
+
+List.export = function()
+	_G.List = List
+	return List
+end
 
 return setmetatable( List, { __call = function( self, vs ) 
 	return list(vs) 
