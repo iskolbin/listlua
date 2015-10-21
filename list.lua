@@ -2,25 +2,7 @@ local PairMt
 
 local Nil 
 
-local Op = {
-	add = function( a, b ) return a + b end,
-	sub = function( a, b ) return a - b end,
-	div = function( a, b ) return a / b end,
-	mod = function( a, b ) return a % b end,
-	mul = function( a, b ) return a * b end,
-	pow = function( a, b ) return a ^ b end,
-	concat = function( a, b ) return a .. b end,
-
-	lt = function( a, b ) return a <  b end,
-	le = function( a, b ) return a <= b end,
-	eq = function( a, b ) return a == b end,
-	ne = function( a, b ) return a ~= b end,
-	gt = function( a, b ) return a >  b end,
-	ge = function( a, b ) return a >= b end,
-
-	inc = function( a ) return a + 1 end,
-	dec = function( a ) return a - 1 end,
-}
+local Wild = setmetatable( {}, {__index = error, __newindex = error, __tostring = function()return '_' end} )
 
 local function cons ( head, lst ) return setmetatable( {head, lst}, PairMt ) end
 local function rcons( head, lst ) return cons( lst, head ) end
@@ -30,6 +12,7 @@ local function cadr( lst ) return lst[2][1] end
 local function caar( lst ) return lst[1][1] end
 local function cdar( lst ) return lst[1][2] end
 local function cddr( lst ) return lst[2][2] end
+local function iswild( lst ) return lst == Wild end
 local function isnil( lst ) return lst == Nil end
 local function ispair( lst ) return lst ~= Nil and getmetatable( lst ) == PairMt end
 local function islist( lst ) return isnil( lst ) or ( ispair( lst ) and (ispair( lst:cdr()) or isnil(lst:cdr()))) end
@@ -143,7 +126,7 @@ end
 
 local function list( vs )
 	local lst = Nil
-	if type( vs ) == 'table' then
+	if type( vs ) == 'table' and not isnil( vs ) and not iswild( vs ) then
 		for i = #vs, 1, -1 do
 			if type( vs[i] ) == 'table' then
 				lst = lst:rcons( list( vs[i] ))
@@ -292,6 +275,10 @@ local function merge( lst1, lst2, cmp )
 	return mergeReverse( lst1, lst2, cmp ):reverse()
 end
 
+local function lt( a, b )
+	return a < b
+end
+
 local function sort( lst, cmp )
 	local function doSort( lr, part, cmp )
 		if isnil( part ) then
@@ -307,7 +294,7 @@ local function sort( lst, cmp )
 		end
 	end
 
-	return doSort( Nil, lst:map( list ), cmp or Op.lt )
+	return doSort( Nil, lst:map( list ), cmp or lt )
 end
 
 local function totable( lst )
@@ -408,7 +395,7 @@ local function popclock( lst, abs )
 end
 
 local function equal( lst, lst2 )
-	if lst == lst2 then
+	if lst == lst2 or lst == Wild or lst2 == Wild then
 		return true
 	elseif islist( lst ) and islist( lst2 ) then
 		if not equal( lst:car(), lst2:car()) then
@@ -427,12 +414,13 @@ local function gc( lst, ... )
 end
 
 local List = {
-	Op = Op, Nil = Nil,
+	Nil = Nil, Wild = Wild, _ = Wild,
 	cons = cons, rcons = rcons, car = car, cdr = cdr, cadr = cadr, caar = caar, cdar = cdar, cddr = cddr,
 	foldl = foldl, foldr = foldr, map = map, filter = filter, mapfilter = mapfilter, filtermap = filtermap, reverse = reverse, each = each, 
 	list = list, range = range, length = length,
 	nth = nth, tail = tail, append = append, copy = copy, partition = partition, flatten = flatten,
-	islist = islist, isproperlist = isproperlist, ispair = ispair, isnil = isnil, tostring = tostring_, display = display, totable = totable,
+	islist = islist, isproperlist = isproperlist, ispair = ispair, isnil = isnil, iswild = iswild, 
+	tostring = tostring_, display = display, totable = totable,
 	sort = sort, merge = merge, eval = eval, equal = equal,
 	pushclock = pushclock, popclock = popclock, gc = gc,
 }
