@@ -1,3 +1,5 @@
+local unpack = table.unpack or unpack
+
 local Op = {
 	add = function( a, b ) return a + b end,
 	sub = function( a, b ) return a - b end,
@@ -25,10 +27,14 @@ local Op = {
 	inc = function( a ) return a + 1 end,
 	dec = function( a ) return a - 1 end,
 
-	curry = function( f, b ) 
-		return function( a )
-			return f( a, b )
-		end 
+	curry = function( f, ... )
+		local n = select( '#', ... )
+		if n == 0 then return f
+		elseif n == 1 then local b = ...; return function( a ) return f( a, b ) end
+		elseif n == 2 then local b, c = ...; return function( a ) return f( a, b, c ) end
+		elseif n == 3 then local b, c, d = ...; return function( a ) return f( a, b, c, d ) end
+		else local vs = {...}; return function( a ) return f( a, unpack( vs )) end 
+		end
 	end,
 }
 

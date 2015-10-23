@@ -44,11 +44,6 @@ end
 
 local function foldr( lst, f, acc )
 	return lst:reverse():foldl( f, acc )
---	if isNil( lst ) then
---		return acc
---	else
---		return f( lst:car(), foldr( lst:cdr(), f, acc ))
---	end
 end
 
 local function tail( lst, i )
@@ -77,7 +72,9 @@ local function indexof( lst, x )
 	return doIndex( 0, lst, x )
 end
 
-local function exists( lst, x ) return lst:indexof( x ) ~= -1 end
+local function exists( lst, x ) 
+	return lst:indexof( x ) ~= -1 
+end
 
 local function map( lst, f )
 	local function doMap( v, acc )
@@ -97,6 +94,37 @@ local function filter( lst, p )
 	end 
 
 	return lst:foldr( doFilter, Nil )
+end
+
+local function del( lst, v )
+	local function doDel( lst, acc )
+		if isnil( lst ) then
+			return acc
+		elseif lst:car() == v then
+			return acc:reverse():append( lst:cdr() )
+		else
+			return doDel( lst:cdr(), acc:add( lst:car()))
+		end
+	end
+
+	return doDel( lst, Nil )
+end
+
+local function unique( lst )
+	local function doUnique( lst, acc, cont )
+		if isnil( lst ) then
+			return acc:reverse()
+		else
+			local v = lst:car()
+			if not cont:exists( v ) then
+				return doUnique( lst:cdr(), acc:add( v ), cont:add( v ))
+			else
+				return doUnique( lst:cdr(), acc, cont )
+			end
+		end
+	end
+
+	return doUnique( lst, Nil, Nil )
 end
 
 local function filtermap( lst, p, f )
@@ -434,15 +462,15 @@ end
 
 local List = {
 	Nil = Nil, Wild = Wild, _ = Wild,
-	cons = cons, add = add, car = car, cdr = cdr, cadr = cadr, caar = caar, cdar = cdar, cddr = cddr,
-	foldl = foldl, foldr = foldr, map = map, filter = filter, mapfilter = mapfilter, filtermap = filtermap, reverse = reverse, each = each, 
+	cons = cons, add = add, del = del, car = car, cdr = cdr, cadr = cadr, caar = caar, cdar = cdar, cddr = cddr,
+	foldl = foldl, foldr = foldr, map = map, filter = filter, mapfilter = mapfilter, filtermap = filtermap, reverse = reverse, each = each, unique = unique, 
 	list = list, range = range, length = length,
-	indexof = indexof, ref = ref, tail = tail, append = append, copy = copy, partition = partition, flatten = flatten,
+	indexof = indexof, exists = exists, ref = ref, tail = tail, append = append, copy = copy, partition = partition, flatten = flatten,
 	count = count, all = all, any = any, alist = alist,
 	islist = islist, isproperlist = isproperlist, ispair = ispair, isnil = isnil, iswild = iswild, 
 	tostring = tostring_, display = display, totable = totable,
-	sort = sort, merge = merge, eval = eval, equal = equal,
-	pushclock = pushclock, popclock = popclock, gc = gc,
+	sort = sort, merge = merge, equal = equal,
+	pushclock = pushclock, popclock = popclock, gc = gc, eval = eval,
 }
 
 PairMt = { 
