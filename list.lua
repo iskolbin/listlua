@@ -5,7 +5,7 @@ local Nil
 local Wild = setmetatable( {}, {__index = error, __newindex = error, __tostring = function()return '_' end} )
 
 local function cons ( head, lst ) return setmetatable( {head, lst}, PairMt ) end
-local function rcons( head, lst ) return cons( lst, head ) end
+local function add( head, lst ) return cons( lst, head ) end
 local function car( lst )  return lst[1] end
 local function cdr( lst )  return lst[2] end
 local function cadr( lst ) return lst[2][1] end
@@ -59,7 +59,7 @@ local function tail( lst, i )
 	end
 end
 
-local function nth( lst, n ) 
+local function ref( lst, n ) 
 	return lst:tail( n-1 ):car() 
 end
 
@@ -129,14 +129,33 @@ local function list( vs )
 	if type( vs ) == 'table' and not isnil( vs ) and not iswild( vs ) then
 		for i = #vs, 1, -1 do
 			if type( vs[i] ) == 'table' then
-				lst = lst:rcons( list( vs[i] ))
+				lst = lst:add( list( vs[i] ))
 			else
-				lst = lst:rcons( vs[i] )
+				lst = lst:add( vs[i] )
 			end
 		end
 		return lst
 	else
-		return lst:rcons( vs )
+		return lst:add( vs )
+	end
+end
+
+local function alist( vs )
+	local lst = Nil
+	if type( vs ) == 'table' and not isnil( vs ) and not iswild( vs ) then
+		for k, v in pairs( vs ) do
+			if type( k ) == 'table' then
+				k = alist( k )
+			end
+			if type( v ) == 'table' then
+				v = alist( v )
+			end
+			
+			lst = lst:add( cons( k, v ) )
+		end
+		return lst
+	else
+		return lst:add( vs )
 	end
 end
 
@@ -145,7 +164,7 @@ local function range( from, to, step )
 		if index < from then
 			return lr
 		else
-			return doForwardRange( lr:rcons( index ), index - step, from, step )
+			return doForwardRange( lr:add( index ), index - step, from, step )
 		end
 	end
 
@@ -153,7 +172,7 @@ local function range( from, to, step )
 		if index > from then
 			return lr
 		else
-			return doBackwardRange( lr:rcons( index ), index - step, from, step )
+			return doBackwardRange( lr:add( index ), index - step, from, step )
 		end
 	end
 
@@ -245,7 +264,7 @@ local function flatten( lst )
 		if ispair( v ) then
 			return v:foldr( doFlatten, acc )
 		else
-			return acc:rcons( v )
+			return acc:add( v )
 		end
 	end
 	
@@ -261,9 +280,9 @@ local function mergeReverse( lst1, lst2, cmp )
 		else
 			local car1, car2 = lst1:car(), lst2:car()
 			if cmp( car1, car2 ) then
-				return doMerge( lst1:cdr(), lst2, cmp, acc:rcons( car1 ))
+				return doMerge( lst1:cdr(), lst2, cmp, acc:add( car1 ))
 			else
-				return doMerge( lst1, lst2:cdr(), cmp, acc:rcons( car2 ))
+				return doMerge( lst1, lst2:cdr(), cmp, acc:add( car2 ))
 			end
 		end
 	end
@@ -288,9 +307,9 @@ local function sort( lst, cmp )
 				return doSort( part, lr, cmp )
 			end
 		elseif isnil( part:cdr()) then
-			return doSort( lr:rcons( part:car()), part:cdr(), cmp )
+			return doSort( lr:add( part:car()), part:cdr(), cmp )
 		else
-			return doSort( lr:rcons( part:car():merge( part:cadr(), cmp )), part:cddr(), cmp )
+			return doSort( lr:add( part:car():merge( part:cadr(), cmp )), part:cddr(), cmp )
 		end
 	end
 
@@ -348,7 +367,7 @@ end
 
 local function display( lst, index )
 	if index then
-		print( lst:nth( index ))
+		print( lst:ref( index ))
 	else
 		print( lst ) 
 	end
@@ -415,10 +434,11 @@ end
 
 local List = {
 	Nil = Nil, Wild = Wild, _ = Wild,
-	cons = cons, rcons = rcons, car = car, cdr = cdr, cadr = cadr, caar = caar, cdar = cdar, cddr = cddr,
+	cons = cons, add = add, car = car, cdr = cdr, cadr = cadr, caar = caar, cdar = cdar, cddr = cddr,
 	foldl = foldl, foldr = foldr, map = map, filter = filter, mapfilter = mapfilter, filtermap = filtermap, reverse = reverse, each = each, 
 	list = list, range = range, length = length,
-	nth = nth, tail = tail, append = append, copy = copy, partition = partition, flatten = flatten,
+	indexof = indexof, ref = ref, tail = tail, append = append, copy = copy, partition = partition, flatten = flatten,
+	count = count, all = all, any = any, alist = alist,
 	islist = islist, isproperlist = isproperlist, ispair = ispair, isnil = isnil, iswild = iswild, 
 	tostring = tostring_, display = display, totable = totable,
 	sort = sort, merge = merge, eval = eval, equal = equal,
