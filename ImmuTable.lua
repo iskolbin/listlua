@@ -1,4 +1,4 @@
-local ImmuTableMt = {}
+local ImmuTableMt
 
 local Nil = {}
 
@@ -56,48 +56,50 @@ local function update( t, vs )
 	return self
 end
 
+local function ref( t, key )
+	return _tables[self][k]
+end
+
 local function isimmutable( t )
 	return _tables[t]
 end
 
-ImmuTableMt.__index = function( self, k ) 
-	return _tables[self][k]
-end
-
-ImmuTableMt.__newindex = function()
-	error[[
-
+ImmutableMt = {
+	__index = ref,
+	__newindex = function()
+		error[[
 Unfortunatly, changing value in table is a statement, so it's pointless in case of immutable tables, since you cannot aquire updated version. So you cannot directly change immutable.
 
 Use function call notation instead: 
  t("foo",42) for addition;
  t("baz") or t("baz", ImmuTable.Nil) for deletion
 ]]
-end
+	end,
+	
+	__call = function( self, k, v )
+		if v == nil then
+			return del( self, k )
+		else
+			return add( self, k, v )
+		end
+	end,
+	
+	__concat = function( self, other )
+		return update( self, _tables[other] )
+	end,
+	
+	__len = function( self )
+		return #_tables[self]
+	end,
 
-ImmuTableMt.__call = function( self, k, v )
-	if v == nil then
-		return del( self, k )
-	else
-		return add( self, k, v )
+	__pairs = function( self )
+		return pairs( _tables[self] )
+	end,
+	
+	__ipairs = function( self )
+		return ipairs( _tables[self] )
 	end
-end
-
-ImmuTableMt.__concat = function( self, other )
-	return update( self, _tables[other] )
-end
-
-ImmuTableMt.__len = function( self )
-	return #_tables[self]
-end
-
-ImmuTableMt.__pairs = function( self )
-	return pairs( _tables[self] )
-end
-
-ImmuTableMt.__ipairs = function( self )
-	return ipairs( _tables[self] )
-end
+}
 
 return setmetatable( {
 	Nil = Nil,
