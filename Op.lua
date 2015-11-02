@@ -52,7 +52,7 @@ Op.C = setmetatable( {}, {
 		return f
 	end} )
 
-Op.export = function()
+Op.import = function()
 	_G.Op = Op
 	return Op
 end

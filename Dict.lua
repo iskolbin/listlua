@@ -65,7 +65,7 @@ local function add( bst, key, value )
 		if key == selfkey then
 			return setmt{key, value, bst[LEFT], bst[RIGHT], bst[LEVEL]}
 		elseif key < selfkey then
-			return rebalance( setmt {selfkey, bst[VALUE], add( bst[LEFT], key, value ), bst[RIGHT], bst[LEVEL]})
+			return rebalance( setmt{selfkey, bst[VALUE], add( bst[LEFT], key, value ), bst[RIGHT], bst[LEVEL]})
 		else
 			return rebalance( setmt{selfkey, bst[VALUE], bst[LEFT], add( bst[RIGHT], key, value ), bst[LEVEL]})
 		end
@@ -82,16 +82,23 @@ local function del( bst, key )
 			if shouldbe < bst[LEVEL] then
 				return setmt{bst[KEY], bst[VALUE], bst[LEFT], bst[RIGHT], shouldbe}
 			elseif shouldbe < bst[RIGHT][LEVEL] then
-				return setmt{bst[KEY], bst[VALUE], bst[LEFT], setmt{bst[RIGHT][KEY], bst[RIGHT][VALUE], bst[RIGHT][LEFT], bst[RIGHT][RIGHT], shouldbe}, bst[LEVEL] }
+				return setmt{bst[KEY], bst[VALUE], bst[LEFT], setmt{bst[RIGHT][KEY], bst[RIGHT][VALUE], bst[RIGHT][LEFT], bst[RIGHT][RIGHT], shouldbe}, bst[LEVEL]}
 			else
 				return bst
 			end
 		end
 
 		local bst1 = skew( decrease( bst ))
-		local bst2 = setmt{bst2[KEY], bst2[VALUE], bst2[LEFT], skew( bst2[RIGHT] ), bst2[LEVEL] }
-		local bst3 = split( bst2[RIGHT] or setmt{bst2[KEY], bst2[VALUE], bst[LEFT], setmt{bst2[RIGHT][KEY], bst2[RIGHT][VALUE], bst2[RIGHT][LEFT], skew( bst2[RIGHT][RIGHT], bst2[RIGHT][LEVEL] )}, bst2[LEVEL] })
-		return setmt{bst3[KEY], bst3[VALUE], bst3[LEFT], split( bst3[RIGHT] ), bst3[LEVEL] }
+		local bst2 = setmt{bst1[KEY], bst1[VALUE], bst1[LEFT], skew( bst1[RIGHT] ), bst1[LEVEL]}
+		local bst3 = bst2
+		local bst2r = bst2[RIGHT]
+		if bst2r ~= Nil then
+			local bst3rr = skew( bst2r[RIGHT] )
+			local bst3r = setmt{bst2r[KEY], bst2r[VALUE], bst2r[LEFT], bst3rr, bst2r[LEVEL]}
+			bst3 = setmt{bst2[KEY], bst2[VALUE], bst2[LEFT], bst3r, bst2[LEVEL]}
+		end
+		local bst4 = split( bst3 )
+		return setmt{bst4[KEY], bst4[VALUE], bst4[LEFT], split( bst4[RIGHT] ), bst4[LEVEL]}
 	end
 
 	local function predecessor( bst )
@@ -103,7 +110,7 @@ local function del( bst, key )
 	end
 
 	local function successor( bst )
-		local bst_ = bst_[RIGHT]
+		local bst_ = bst[RIGHT]
 		while bst_[LEFT] ~= Nil do
 			bst_ = bst_[LEFT]
 		end
@@ -113,7 +120,7 @@ local function del( bst, key )
 	if bst ~= Nil then
 		local selfkey = bst[KEY]
 		if selfkey == key then
-			if bst[LEFT] == bst[RIGHT] and bst[LEFT] == Nil then
+			if bst[LEFT] == Nil and bst[RIGHT] == Nil then
 				return Nil
 			else
 				if bst[LEFT] == Nil then
@@ -125,9 +132,9 @@ local function del( bst, key )
 				end
 			end
 		elseif key < selfkey then
-			return rebalance( setmt{selfkey, bst[VALUE], del( key, bst[LEFT] ), bst[RIGHT], bst[LEVEL]} )
+			return rebalance( setmt{selfkey, bst[VALUE], del( bst[LEFT], key ), bst[RIGHT], bst[LEVEL]} )
 		else
-			return rebalance( setmt{selfkey, bst[VALUE], bst[LEFT], del( key, bst[RIGHT] ), bst[LEVEL]} )
+			return rebalance( setmt{selfkey, bst[VALUE], bst[LEFT], del( bst[RIGHT], key ), bst[LEVEL]} )
 		end
 	else
 		return bst
@@ -279,42 +286,42 @@ local function indexof( dct, value )
 	end
 end
 
-local function totable( dct )
+local function totable( dct, mode )
 	local function doToTable( dct, t )
-		if isdict( dct ) and not isnil( dct ) then
-			doToTable( dct[LEFT], t )
-			t[dct[KEY]] = dct[VALUE]
-			doToTable( dct[RIGHT], t )
-		end
-		return t
+		if isdict( dct ) and not isnil( dct ) then doToTable( dct[LEFT], t ); t[dct[KEY]] = dct[VALUE]; doToTable( dct[RIGHT], t ) end; return t
+	end
+	
+	local function kdoToTable( dct, t )
+		if isdict( dct ) and not isnil( dct ) then kdoToTable( dct[LEFT], t ); t[#t+1] = dct[KEY]; kdoToTable( dct[RIGHT], t ) end; return t
 	end
 
-	return doToTable( dct, {} )
-end
-
-local function toarray( dct )
-	local function doToTable( dct, t )
-		if isdict( dct ) and not isnil( dct ) then
-			doToTable( dct[LEFT], t )
-			t[#t+1] = dct[KEY]
-			doToTable( dct[RIGHT], t )
-		end
-		return t
+	local function vdoToTable( dct, t )
+		if isdict( dct ) and not isnil( dct ) then vdoToTable( dct[LEFT], t ); t[#t+1] = dct[VALUE]; vdoToTable( dct[RIGHT], t ) end; return t
 	end
-
-	return doToTable( dct, {} )
+	
+	local function kvdoToTable( dct, t )
+		if isdict( dct ) and not isnil( dct ) then kvdoToTable( dct[LEFT], t ); t[#t+1] = {dct[KEY], dct[VALUE]}; kvdoToTable( dct[RIGHT], t ) end; return t
+	end
+	
+	if mode == nil or mode == 't' then
+		return doToTable( dct, {} )
+	elseif mode == 'k' then
+		return kdoToTable( dct, {} )
+	elseif mode == 'v' then
+		return vdoToTable( dct, {} )
+	elseif mode == 'kv' then
+		return kvdoToTable( dct, {} )
+	else
+		error( 'Mode should be nil or "t", "k", "v" or "kv"')
+	end
 end
 
-local function tolist( dct )
-	return List.list( toarray( dct ))
-end
-
-local function toalist( dct )
-	return List.alist( totable( dct ))
+local function tolist( dct, mode )
+	return List.list( totable( dct, mode or 'kv' ))
 end
 
 local function tostring_( dct )
-	return dct:toalist():tostring()
+	return dct:tolist('kv'):tostring()
 end
 
 local function display( dct )
@@ -322,14 +329,14 @@ local function display( dct )
 	return dct
 end
 
-
 local Dict = {
+	Nil = Nil,
 	isnil = isnil, isdict = isdict,
-	add = add, del = del, ref = ref, update, length = length, copy = copy, 
-	indexof = indexof, tolist = tolist, toalist = toalist, totable = totable, toarray = toarray, 
+	add = add, del = del, ref = ref, update = update, length = length, copy = copy, 
+	indexof = indexof, tolist = tolist, totable = totable, toarray = toarray, 
 	set = set, dict = dict, tostring = tostring_, display = display,
-	map = map, filter = filter, foldl = foldl, foldr = foldr, count = count, each = each, export = export,
-	filtermap = filtermap, mapfilter = mapfilter,
+	map = map, filter = filter, foldl = foldl, foldr = foldr, count = count, each = each,
+	filtermap = filtermap, mapfilter = mapfilter
 }
 
 Dict.Nil = setmt( Nil )
@@ -340,7 +347,7 @@ DictMt = {
 	__tostring = tostring_,
 }
 
-Dict.export = function( dct )
+Dict.import = function( dct )
 	_G.Dict = Dict
 	return dct
 end

@@ -287,6 +287,30 @@ local function partition( lst, p )
 	return foldr( lst, doPartition, cons( Nil, Nil ))
 end
 
+local function zip( lst, lst2 )
+	local function loop( l1, l2, acc )
+		if l1:isnil() or l2:isnil() then
+			return acc:reverse()
+		else
+			return loop( l1:cdr(), l2:cdr(), acc:add( Nil:add( l2:car() ):add( l1:car() )))
+		end
+	end
+
+	return loop( lst, lst2, Nil )
+end
+
+local function unzip( lst, n )
+	local function loop( l, acc, index )
+		if l:isnil() then
+			return acc:reverse()
+		else
+			return loop( l:cdr(), acc:add( l:car():ref( index )), index )
+		end
+	end
+
+	return loop( lst, Nil, n or 1 )
+end
+
 local function flatten( lst )
 	local function doFlatten( v, acc )
 		if ispair( v ) then
@@ -344,19 +368,35 @@ local function sort( lst, cmp )
 	return doSort( Nil, lst:map( list ), cmp or lt )
 end
 
-local function totable( lst )
+local function totable( lst, mode )
 	if ispair( lst ) then
 		local acc = {}
-		while not lst:isnil() do
-			if lst:islist() then
-				acc[#acc+1] = lst:car()
+		while not isnil( lst ) do
+			if islist( lst ) then
+				local i = #acc+1
+				if mode == 'i' then
+					acc[i] = {i,lst:car()}
+				else
+					acc[i] = lst:car()
+				end
 				lst = lst:cdr()	
-			elseif isPair( lst ) then
-				acc[#acc+1] = lst:car()
-				acc[#acc+1] = lst:cdr()
+			elseif ispair( lst ) then
+				local i = #acc+1
+				if mode == 'i' then
+					acc[i] = {i,lst:car()}
+					acc[i+1] = {i+1,lst:cdr()}
+				else
+					acc[i] = lst:car()
+					acc[i+1] = lst:cdr()
+				end
 				break
 			else
-				acc[#acc+1] = lst
+				local i = #acc+1
+				if mode == 'i' then
+					acc[i] = lst
+				else
+					acc[i] = {i,lst}
+				end
 				break
 			end
 		end
@@ -409,14 +449,15 @@ local function eval( lst )
 	return v
 end
 
-local function shuffle( lst )
-	error( 'Not implemented' )
-	
-	local function doShuffle( lst, acc, len )
-		
+local function shuffle( lst, f )
+	local t = totable( lst )
+	local f, n = f or math.random, #t
+	for i = n, 1, -1 do
+		local j = f( i )
+		t[j], t[i] = t[i], t[j]
 	end
-
-	return doShuffle( lst, Nil, lst:length() )
+	
+	return list( t )
 end
 
 local _clocks, _mem, _nclocks = {}, {}, 0
@@ -465,9 +506,9 @@ local List = {
 	cons = cons, add = add, del = del, car = car, cdr = cdr, cadr = cadr, caar = caar, cdar = cdar, cddr = cddr,
 	foldl = foldl, foldr = foldr, map = map, filter = filter, mapfilter = mapfilter, filtermap = filtermap, reverse = reverse, each = each, unique = unique, 
 	list = list, range = range, length = length,
-	indexof = indexof, exists = exists, ref = ref, tail = tail, append = append, copy = copy, partition = partition, flatten = flatten,
+	indexof = indexof, exists = exists, ref = ref, tail = tail, append = append, copy = copy, partition = partition, zip = zip, unzip = unzip, flatten = flatten,
 	count = count, all = all, any = any, alist = alist,
-	islist = islist, isproperlist = isproperlist, ispair = ispair, isnil = isnil, iswild = iswild, 
+	islist = islist, isproperlist = isproperlist, ispair = ispair, isnil = isnil, iswild = iswild, shuffle = shuffle, 
 	tostring = tostring_, display = display, totable = totable,
 	sort = sort, merge = merge, equal = equal,
 	pushclock = pushclock, popclock = popclock, gc = gc, eval = eval,
@@ -482,7 +523,7 @@ PairMt = {
 
 Nil = setmetatable( {}, PairMt )
 
-List.export = function()
+List.import = function()
 	_G.List = List
 	return List
 end

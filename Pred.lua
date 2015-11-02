@@ -18,7 +18,7 @@ local Pred = {
 	id = function( a ) return type( y ) == 'string' and y:match('[%a_][%w_]*') == y end,
 }
 
-Pred.export = function()
+Pred.import = function()
 	_G.Pred = Pred
 	return Pred
 end
