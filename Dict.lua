@@ -1,3 +1,4 @@
+local Common = require'Common'
 local List = require'List'
 
 local DictMt
@@ -141,8 +142,18 @@ local function del( bst, key )
 	end
 end
 
+local function is( dct, what )
+	if what == 'dict' then
+		return getmetatable( dct ) == DictMt
+	elseif what == 'nildict' then
+		return dct == Nil
+	else
+		return Common.is( dict, what )
+	end
+end
+
 local function isdict( dct )
-	return getmetatable( dct ) == DictMt
+	return getmetatable( dct ) == DictMt 
 end
 
 local function isnil( dct )
@@ -160,12 +171,23 @@ local function update( dct, t )
 	return dct
 end
 
-local function dict( t )
+local function dict( t, ... )
 	local dct = Nil
-	for k, v in pairs( t ) do
-		dct = add( dct, k, v )
+	if type( t ) == 'table' then
+		for k, v in pairs( t ) do
+			dct = add( dct, k, v )
+		end
+		return dct
+	elseif type( t ) == 'function' then
+		for k, v in t, ... do
+			dct = add( dct, k, v )
+		end
+		return dct
+	elseif t == nil then
+		return dct 
+	else
+		error( 'Dict can be initialized from table or iterator or from nil')
 	end
-	return dct
 end
 
 local function set( t )
@@ -229,6 +251,7 @@ local function filtermap( dct, p, f )
 		end
 	end
 end
+
 local function mapfilter( dct, f, p )
 	if dct then
 		local v = f( dct[VALUE], dct[KEY] )
@@ -320,23 +343,23 @@ local function tolist( dct, mode )
 	return List.list( totable( dct, mode or 'kv' ))
 end
 
-local function tostring_( dct )
-	return dct:tolist('kv'):tostring()
+local function tostring_( dct, sep )
+	return dct:tolist('kv'):tostring( sep )
 end
 
-local function display( dct )
-	print( dct )
+local function display( dct, sep )
+	print( tostring_(dct, sep) )
 	return dct
 end
 
 local Dict = {
-	Nil = Nil,
-	isnil = isnil, isdict = isdict,
+	Nil = Nil, 
+	is = is, isdict = isdict, isnil = isnil,
 	add = add, del = del, ref = ref, update = update, length = length, copy = copy, 
 	indexof = indexof, tolist = tolist, totable = totable, toarray = toarray, 
 	set = set, dict = dict, tostring = tostring_, display = display,
 	map = map, filter = filter, foldl = foldl, foldr = foldr, count = count, each = each,
-	filtermap = filtermap, mapfilter = mapfilter
+	filtermap = filtermap, mapfilter = mapfilter, cond = List.cond,
 }
 
 Dict.Nil = setmt( Nil )
@@ -352,6 +375,6 @@ Dict.import = function( dct )
 	return dct
 end
 
-return setmetatable( Dict, { __call = function( self, vs )
-	return dict( vs )
-end } )
+return setmetatable( Dict, { __call = function( self, ... )
+	return dict( ... )
+end, __index = Common } )

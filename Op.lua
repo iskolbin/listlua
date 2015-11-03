@@ -27,6 +27,8 @@ local Op = {
 	inc = function( a ) return a + 1 end,
 	dec = function( a ) return a - 1 end,
 
+	const = function( a ) return a end,
+
 	curry = function( f, ... )
 		local n = select( '#', ... )
 		if n == 0 then return f

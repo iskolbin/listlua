@@ -1,3 +1,5 @@
+local Common = require'Common'
+
 local PairMt
 
 local Nil 
@@ -23,6 +25,20 @@ local function isproper( lst )
 		return false
 	else
 		return isproper( lst:cdr())
+	end
+end
+
+local function is( lst, what )
+	if what == 'list' then
+		return islist( lst )
+	elseif what == 'nillist' then
+		return isnil( lst )
+	elseif what == 'properlist' then
+		return isproper( lst )
+	elseif what == 'pair' then
+		return ispair( lst )
+	else
+		return Common.is( lst, what )
 	end
 end
 
@@ -152,19 +168,26 @@ local function mapfilter( lst, f, p )
 	return lst:foldr( doFilterMap, Nil )
 end
 
-local function list( vs )
+local function list( t, ... )
 	local lst = Nil
-	if type( vs ) == 'table' and not isnil( vs ) and not iswild( vs ) then
-		for i = #vs, 1, -1 do
-			if type( vs[i] ) == 'table' then
-				lst = lst:add( list( vs[i] ))
+	if type( t ) == 'table' and not isnil( t ) and not iswild( t ) then
+		for i = #t, 1, -1 do
+			if type( t[i] ) == 'table' then
+				lst = lst:add( list( t[i] ))
 			else
-				lst = lst:add( vs[i] )
+				lst = lst:add( t[i] )
 			end
 		end
 		return lst
+	elseif type( t ) == 'function' then
+		for k, v in t, ... do
+			lst = lst:add( k )
+		end
+		return lst:reverse()
+	elseif type( t ) == nil then
+		return lst
 	else
-		return lst:add( vs )
+		error( 'List can be initialized from table or function or nil' )
 	end
 end
 
@@ -406,17 +429,18 @@ local function totable( lst, mode )
 	end
 end
 
-local function tostring_( lst )
+local function tostring_( lst, sep )
+	local sep = sep or ' '
 	if ispair( lst ) then
 		local acc = {}
 		while not lst:isnil() do
 			if lst:islist() then
-				acc[#acc+1] = tostring_( lst:car())
+				acc[#acc+1] = tostring_( lst:car(), sep )
 				lst = lst:cdr()	
 			elseif lst:ispair() then
-				acc[#acc+1] = tostring_( lst:car())
+				acc[#acc+1] = tostring_( lst:car(), sep )
 				acc[#acc+1] = '.'
-				acc[#acc+1] = tostring_( lst:cdr())
+				acc[#acc+1] = tostring_( lst:cdr(), sep )
 				break
 			else
 				acc[#acc+1] = tostring( lst )
@@ -425,7 +449,7 @@ local function tostring_( lst )
 		end
 		acc[1] = '(' .. acc[1]
 		acc[#acc] = acc[#acc] .. ')'
-		return table.concat( acc, ' ')
+		return table.concat( acc, sep )
 	elseif isnil( lst ) then
 		return '()'
 	else
@@ -442,13 +466,6 @@ local function display( lst, index )
 	return lst or Nil
 end
 
-local unpack = table.unpack or unpack
-
-local function eval( lst )
-	local v = lst:car()( unpack( lst:cdr():totable()))
-	return v
-end
-
 local function shuffle( lst, f )
 	local t = totable( lst )
 	local f, n = f or math.random, #t
@@ -460,27 +477,6 @@ local function shuffle( lst, f )
 	return list( t )
 end
 
-local _clocks, _mem, _nclocks = {}, {}, 0
-
-local function pushclock( lst )
-	_nclocks = _nclocks + 1
-	_clocks[_nclocks] = os.clock()
-	_mem[_nclocks] = 1024 * collectgarbage('count')
-	return lst or Nil
-end
-
-local function popclock( lst, abs )
-	if _nclocks > 0 then
-		local clck, mem = _clocks[_nclocks], _mem[_nclocks]
-		_clocks[_nclocks] = nil
-		_mem[_nclocks] = nil
-		_nclocks = _nclocks - 1
-		print( 'Time:', os.clock() - (abs and 0 or clck), 'Mem:', 1024 * collectgarbage('count') - (abs and 0 or mem))
-	else
-		print( 'Empty clocks stack' )
-	end
-	return lst or Nil
-end
 
 local function equal( lst, lst2 )
 	if lst == lst2 or lst == Wild or lst2 == Wild then
@@ -496,11 +492,6 @@ local function equal( lst, lst2 )
 	end
 end
 
-local function gc( lst, ... )
-	collectgarbage( ... )
-	return lst
-end
-
 local List = {
 	Nil = Nil, Wild = Wild, _ = Wild,
 	cons = cons, add = add, del = del, car = car, cdr = cdr, cadr = cadr, caar = caar, cdar = cdar, cddr = cddr,
@@ -508,10 +499,9 @@ local List = {
 	list = list, range = range, length = length,
 	indexof = indexof, exists = exists, ref = ref, tail = tail, append = append, copy = copy, partition = partition, zip = zip, unzip = unzip, flatten = flatten,
 	count = count, all = all, any = any, alist = alist,
-	islist = islist, isproperlist = isproperlist, ispair = ispair, isnil = isnil, iswild = iswild, shuffle = shuffle, 
+	is = is, islist = islist, isproperlist = isproperlist, ispair = ispair, isnil = isnil, iswild = iswild, shuffle = shuffle, 
 	tostring = tostring_, display = display, totable = totable,
-	sort = sort, merge = merge, equal = equal,
-	pushclock = pushclock, popclock = popclock, gc = gc, eval = eval,
+	sort = sort, merge = merge, equal = equal
 }
 
 PairMt = { 
@@ -528,7 +518,7 @@ List.import = function()
 	return List
 end
 
-return setmetatable( List, { __call = function( self, vs ) 
-	return list(vs) 
-end } )
+return setmetatable( List, { __call = function( self, ... ) 
+	return list(...) 
+end, __index = Common } )
 
