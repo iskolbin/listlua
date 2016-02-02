@@ -2,7 +2,7 @@ local Common = require'Common'
 
 local PairMt
 
-local Nil 
+local Nil = {} 
 
 local Wild = setmetatable( {}, {__index = error, __newindex = error, __tostring = function()return '_' end} )
 
@@ -74,7 +74,7 @@ local function ref( lst, n )
 	return lst:tail( n-1 ):car() 
 end
 
-local function indexof( lst, x )
+local function indexof( lst_, x_ )
 	local function doIndex( i, lst, x )
 		if isnil( lst ) then
 			return -1
@@ -85,7 +85,7 @@ local function indexof( lst, x )
 		end
 	end
 
-	return doIndex( 0, lst, x )
+	return doIndex( 0, lst_, x_ )
 end
 
 local function exists( lst, x ) 
@@ -112,7 +112,7 @@ local function filter( lst, p )
 	return lst:foldr( doFilter, Nil )
 end
 
-local function del( lst, v )
+local function del( lst_, v )
 	local function doDel( lst, acc )
 		if isnil( lst ) then
 			return acc
@@ -123,10 +123,10 @@ local function del( lst, v )
 		end
 	end
 
-	return doDel( lst, Nil )
+	return doDel( lst_, Nil )
 end
 
-local function unique( lst )
+local function unique( lst_ )
 	local function doUnique( lst, acc, cont )
 		if isnil( lst ) then
 			return acc:reverse()
@@ -140,7 +140,7 @@ local function unique( lst )
 		end
 	end
 
-	return doUnique( lst, Nil, Nil )
+	return doUnique( lst_, Nil, Nil )
 end
 
 local function filtermap( lst, p, f )
@@ -165,7 +165,7 @@ local function mapfilter( lst, f, p )
 		end
 	end 
 
-	return lst:foldr( doFilterMap, Nil )
+	return lst:foldr( doMapFilter, Nil )
 end
 
 local function list( t, ... )
@@ -180,7 +180,7 @@ local function list( t, ... )
 		end
 		return lst
 	elseif type( t ) == 'function' then
-		for k, v in t, ... do
+		for k, _ in t, ... do
 			lst = lst:add( k )
 		end
 		return lst:reverse()
@@ -210,29 +210,29 @@ local function alist( vs )
 	end
 end
 
-local function range( from, to, step )
-	local function doForwardRange( lr, index, from, step )
-		if index < from then
+local function range( from, to, stepi )
+	local function doForwardRange( lr, index_, from_, step_ )
+		if index_ < from_ then
 			return lr
 		else
-			return doForwardRange( lr:add( index ), index - step, from, step )
+			return doForwardRange( lr:add( index_ ), index_ - step_, from_, step_ )
 		end
 	end
 
-	local function doBackwardRange( lr, index, from, step )
-		if index > from then
+	local function doBackwardRange( lr, index_, from_, step_ )
+		if index_ > from_ then
 			return lr
 		else
-			return doBackwardRange( lr:add( index ), index - step, from, step )
+			return doBackwardRange( lr:add( index_ ), index_ - step_, from_, step_ )
 		end
 	end
 
-	if to == nil and step == nil then
+	if to == nil and stepi == nil then
 		to = from
 		from = to > 0 and 1 or to < 0 and -1 or 0 
 	end
 
-	local step = step or ( from <= to and 1 or -1 )
+	local step = stepi or ( from <= to and 1 or -1 )
 
 	if from <= to and step > 0 then
 		return doForwardRange( Nil, to, from, step )
@@ -249,7 +249,7 @@ local function append( lst, lstTail )
 	return lst:reverse():foldl( cons, islist( lstTail ) and lstTail or list(lstTail) )
 end
 
-local function length( lst ) 
+local function length( lst_ ) 
 	local function doLength( lst, acc )
 		if lst:isnil() then
 			return acc
@@ -258,11 +258,11 @@ local function length( lst )
 		end
 	end
 
-	return doLength( lst, 0 )
+	return doLength( lst_, 0 )
 end
 
 local function each( lst, f )
-	local function doEach( v, acc ) 
+	local function doEach( v ) 
 		f( v ) 
 	end
 
@@ -346,8 +346,8 @@ local function flatten( lst )
 	return lst:foldr( doFlatten, Nil )
 end
 
-local function mergeReverse( lst1, lst2, cmp )	
-	local function doMerge( lst1, lst2, cmp, acc )
+local function mergeReverse( lst1_, lst2_, cmp )	
+	local function doMerge( lst1, lst2, acc )
 		if lst1:isnil() then
 			return lst2:foldl( cons, acc )
 		elseif lst2:isnil() then
@@ -355,14 +355,14 @@ local function mergeReverse( lst1, lst2, cmp )
 		else
 			local car1, car2 = lst1:car(), lst2:car()
 			if cmp( car1, car2 ) then
-				return doMerge( lst1:cdr(), lst2, cmp, acc:add( car1 ))
+				return doMerge( lst1:cdr(), lst2, acc:add( car1 ))
 			else
-				return doMerge( lst1, lst2:cdr(), cmp, acc:add( car2 ))
+				return doMerge( lst1, lst2:cdr(), acc:add( car2 ))
 			end
 		end
 	end
 
-	return doMerge( lst1, lst2, cmp, Nil )
+	return doMerge( lst1_, lst2_, Nil )
 end
 
 local function merge( lst1, lst2, cmp )
@@ -373,22 +373,22 @@ local function lt( a, b )
 	return a < b
 end
 
-local function sort( lst, cmp )
-	local function doSort( lr, part, cmp )
+local function sort( lst_, cmp )
+	local function doSort( lr, part )
 		if isnil( part ) then
 			if isnil( lr:cdr()) then
 				return lr:car()
 			else
-				return doSort( part, lr, cmp )
+				return doSort( part, lr )
 			end
 		elseif isnil( part:cdr()) then
-			return doSort( lr:add( part:car()), part:cdr(), cmp )
+			return doSort( lr:add( part:car()), part:cdr())
 		else
-			return doSort( lr:add( part:car():merge( part:cadr(), cmp )), part:cddr(), cmp )
+			return doSort( lr:add( part:car():merge( part:cadr())), part:cddr())
 		end
 	end
 
-	return doSort( Nil, lst:map( list ), cmp or lt )
+	return doSort( Nil, lst_:map( list ), cmp or lt )
 end
 
 local function totable( lst, mode )
@@ -429,8 +429,8 @@ local function totable( lst, mode )
 	end
 end
 
-local function tostring_( lst, sep )
-	local sep = sep or ' '
+local function tostring_( lst, sep_ )
+	local sep = sep_ or ' '
 	if ispair( lst ) then
 		local acc = {}
 		while not lst:isnil() do
@@ -466,9 +466,9 @@ local function display( lst, index )
 	return lst or Nil
 end
 
-local function shuffle( lst, f )
+local function shuffle( lst, f_ )
 	local t = totable( lst )
-	local f, n = f or math.random, #t
+	local f, n = f_ or math.random, #t
 	for i = n, 1, -1 do
 		local j = f( i )
 		t[j], t[i] = t[i], t[j]
@@ -499,7 +499,7 @@ local List = {
 	list = list, range = range, length = length,
 	indexof = indexof, exists = exists, ref = ref, tail = tail, append = append, copy = copy, partition = partition, zip = zip, unzip = unzip, flatten = flatten,
 	count = count, all = all, any = any, alist = alist,
-	is = is, islist = islist, isproperlist = isproperlist, ispair = ispair, isnil = isnil, iswild = iswild, shuffle = shuffle, 
+	is = is, islist = islist, isproper = isproper, ispair = ispair, isnil = isnil, iswild = iswild, shuffle = shuffle, 
 	tostring = tostring_, display = display, totable = totable,
 	sort = sort, merge = merge, equal = equal
 }
@@ -511,14 +511,14 @@ PairMt = {
 	__concat = List.append,
 }
 
-Nil = setmetatable( {}, PairMt )
+Nil = setmetatable( Nil, PairMt )
 
 List.import = function()
 	_G.List = List
 	return List
 end
 
-return setmetatable( List, { __call = function( self, ... ) 
+return setmetatable( List, { __call = function( _, ... ) 
 	return list(...) 
 end, __index = Common } )
 
