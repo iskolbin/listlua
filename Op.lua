@@ -4,7 +4,7 @@ local Op = {
 	add = function( a, b ) return a + b end,
 	sub = function( a, b ) return a - b end,
 	div = function( a, b ) return a / b end,
-	idiv = function( a, b ) return x >= 0 and math.floor( a / b ) or math.ceil( a / b ) end,
+	idiv = function( a, b ) return a >= 0 and math.floor( a / b ) or math.ceil( a / b ) end,
 	mod = function( a, b ) return a % b end,
 	mul = function( a, b ) return a * b end,
 	pow = function( a, b ) return a ^ b end,
@@ -43,7 +43,7 @@ local Op = {
 local _cacheOpC = {}
 
 Op.C = setmetatable( {}, {
-	__index = function( self, k )
+	__index = function( _, k )
 		local f = _cacheOpC[k]
 		if not f then
 			f = function( a )
