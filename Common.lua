@@ -15,7 +15,7 @@ local _istable = {
 	['positive'] = function( a ) return a > 0 end,
 	['negative'] = function( a ) return a < 0 end,
 	['zero'] = function( a ) return a == 0 end,
-	['id'] = function( a ) return type( y ) == 'string' and y:match('[%a_][%w_]*') == y end,
+	['id'] = function( a ) return type( a ) == 'string' and a:match('^[%a_][%w_]*') == a end,
 }
 
 local function is( obj, tp )
