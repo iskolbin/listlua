@@ -56,15 +56,15 @@ local function update( t, vs )
 	return self
 end
 
-local function ref( t, key )
-	return _tables[self][k]
+local function ref( t, k )
+	return _tables[t][k]
 end
 
 local function isimmutable( t )
 	return _tables[t]
 end
 
-ImmutableMt = {
+ImmuTableMt = {
 	__index = ref,
 	__newindex = function()
 		error[[
@@ -109,6 +109,6 @@ return setmetatable( {
 	update = update,
 	parent = function( t ) return _tables[t] end,
 	isimmutable = isimmutable,
-}, {__call = function( self, t )
+}, {__call = function( _, t )
 	return new( t )
 end } )
