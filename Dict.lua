@@ -55,8 +55,8 @@ local function ref( bst, key )
 end
 
 local function add( bst, key, value )
-	local function rebalance( bst )
-		return split( skew ( bst ))
+	local function rebalance( bst_ )
+		return split( skew ( bst_ ))
 	end
 
 	if bst == Nil then
@@ -73,22 +73,23 @@ local function add( bst, key, value )
 	end
 end
 
-local function del( bst, key )
-	local function rebalance( bst )
-		local function decrease( bst )
-			local function min( a, b )
-				return a > b and b or a
-			end
-			local shouldbe = min( bst[LEFT][LEVEL], bst[RIGHT][LEVEL] + 1 )
-			if shouldbe < bst[LEVEL] then
-				return setmt{bst[KEY], bst[VALUE], bst[LEFT], bst[RIGHT], shouldbe}
-			elseif shouldbe < bst[RIGHT][LEVEL] then
-				return setmt{bst[KEY], bst[VALUE], bst[LEFT], setmt{bst[RIGHT][KEY], bst[RIGHT][VALUE], bst[RIGHT][LEFT], bst[RIGHT][RIGHT], shouldbe}, bst[LEVEL]}
-			else
-				return bst
-			end
+local function del( bsti, key )
+	local function min( a, b )
+		return a > b and b or a
+	end
+	
+	local function decrease( bst )
+		local shouldbe = min( bst[LEFT][LEVEL], bst[RIGHT][LEVEL] + 1 )
+		if shouldbe < bst[LEVEL] then
+			return setmt{bst[KEY], bst[VALUE], bst[LEFT], bst[RIGHT], shouldbe}
+		elseif shouldbe < bst[RIGHT][LEVEL] then
+			return setmt{bst[KEY], bst[VALUE], bst[LEFT], setmt{bst[RIGHT][KEY], bst[RIGHT][VALUE], bst[RIGHT][LEFT], bst[RIGHT][RIGHT], shouldbe}, bst[LEVEL]}
+		else
+			return bst
 		end
-
+	end
+	
+	local function rebalance( bst )
 		local bst1 = skew( decrease( bst ))
 		local bst2 = setmt{bst1[KEY], bst1[VALUE], bst1[LEFT], skew( bst1[RIGHT] ), bst1[LEVEL]}
 		local bst3 = bst2
@@ -118,6 +119,7 @@ local function del( bst, key )
 		return bst_
 	end
 
+	local bst = bsti
 	if bst ~= Nil then
 		local selfkey = bst[KEY]
 		if selfkey == key then
@@ -148,7 +150,7 @@ local function is( dct, what )
 	elseif what == 'nildict' then
 		return dct == Nil
 	else
-		return Common.is( dict, what )
+		return Common.is( dct, what )
 	end
 end
 
@@ -309,7 +311,7 @@ local function indexof( dct, value )
 	end
 end
 
-local function totable( dct, mode )
+local function totable( dct_, mode )
 	local function doToTable( dct, t )
 		if isdict( dct ) and not isnil( dct ) then doToTable( dct[LEFT], t ); t[dct[KEY]] = dct[VALUE]; doToTable( dct[RIGHT], t ) end; return t
 	end
@@ -327,20 +329,20 @@ local function totable( dct, mode )
 	end
 	
 	if mode == nil or mode == 't' then
-		return doToTable( dct, {} )
+		return doToTable( dct_, {} )
 	elseif mode == 'k' then
-		return kdoToTable( dct, {} )
+		return kdoToTable( dct_, {} )
 	elseif mode == 'v' then
-		return vdoToTable( dct, {} )
+		return vdoToTable( dct_, {} )
 	elseif mode == 'kv' then
-		return kvdoToTable( dct, {} )
+		return kvdoToTable( dct_, {} )
 	else
 		error( 'Mode should be nil or "t", "k", "v" or "kv"')
 	end
 end
 
-local function tolist( dct, mode )
-	return List.list( totable( dct, mode or 'kv' ))
+local function tolist( dct_, mode )
+	return List.list( totable( dct_, mode or 'kv' ))
 end
 
 local function tostring_( dct, sep )
@@ -356,7 +358,7 @@ local Dict = {
 	Nil = Nil, 
 	is = is, isdict = isdict, isnil = isnil,
 	add = add, del = del, ref = ref, update = update, length = length, copy = copy, 
-	indexof = indexof, tolist = tolist, totable = totable, toarray = toarray, 
+	indexof = indexof, tolist = tolist, totable = totable, tolist = tolist, 
 	set = set, dict = dict, tostring = tostring_, display = display,
 	map = map, filter = filter, foldl = foldl, foldr = foldr, count = count, each = each,
 	filtermap = filtermap, mapfilter = mapfilter, cond = List.cond,
@@ -375,6 +377,6 @@ Dict.import = function( dct )
 	return dct
 end
 
-return setmetatable( Dict, { __call = function( self, ... )
+return setmetatable( Dict, { __call = function( _, ... )
 	return dict( ... )
 end, __index = Common } )
